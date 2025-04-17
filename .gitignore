@@ -1,0 +1,39 @@
+# Virtual environment
+venv/
+.env
+
+# Python cache and build files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Logs
+*.log
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Local config and sensitive data
+*.env
+*.local
+config/*.secret
+*.key
+*.pem
+
+# Heroku-specific (avoid committing runtime or slugs)
+.slugignore
+*.bak
+*.swp

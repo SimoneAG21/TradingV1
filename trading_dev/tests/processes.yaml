@@ -1,0 +1,24 @@
+# Additional processes configuration for TradingV1, included by combined_config_test.yaml.
+# Defines processes like 'sync' for testing external file inclusion in ConfigManager.
+# Used by test_config_manager.py to verify modularity, applicable to app.py and telegram_fetch.py.
+
+# Usage:
+#   Included automatically via combined_config_test.yaml’s 'includes' key.
+#   from helper.config_manager import ConfigManager
+#   config = ConfigManager('tests/combined_config_test.yaml')
+#   sync = next(p for p in config.get_section('processes') if p.get('id') == 'sync')
+#   # Returns sync process with interval=300
+
+# Features:
+# - Processes: Defines task configurations (e.g., sync process with interval, timeout).
+# - Inclusion: Merged into main processes list for flexible configuration management.
+
+processes:
+  # Process definitions for additional tasks
+  - id: sync
+    interval:
+      value: 300
+      type: integer
+    timeout:
+      value: 600
+      type: integer
