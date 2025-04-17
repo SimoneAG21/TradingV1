@@ -1,0 +1,4 @@
+<!-- config/processes.xml -->
+<processes>
+    <process id="sync" interval="300" type_interval="integer" timeout="600" type_timeout="integer"/>
+</processes>

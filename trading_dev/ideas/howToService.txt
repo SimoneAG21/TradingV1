@@ -1,0 +1,15 @@
+[Unit]
+Description=Channel Tracker Service
+After=network.target
+
+[Service]
+User=egirg
+Environment="CHTRKR_ROOT=/home/egirg/shared/trading_dev"
+Environment="PYTHONPATH=/home/egirg/shared/trading_dev"
+WorkingDirectory=/home/egirg/shared/trading_dev
+ExecStart=/home/egirg/shared/trading_dev/venv/bin/python /home/egirg/shared/trading_dev/scripts/channelTracker.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

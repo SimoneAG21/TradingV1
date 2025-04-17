@@ -1,0 +1,32 @@
+logging:
+  logger_name: "TradingLogger"
+  log_stream_level: "INFO"
+  logstream_format: "%(name)s - %(levelname)s - %(message)s"
+  log_dir_name: "logs"
+  log_file_max_bytes: 10485760  # 10MB
+  log_file_backup_count: 10
+  logfile_file_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+timelimit:
+  max_run_time_seconds: 3600  # 1 hour
+
+timezone:
+  name: "America/Chicago"
+
+# Database settings (Heroku PostgreSQL credentials)
+database:
+  user: "u64g8eocr7nhul"
+  password: "p3b8ecfc9a637f11fb55f26fcf499d36f5f6a5c90a59f1c99a40fce32e4b549b7"
+  host: "ca932070ke6bv1.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com"
+  port: "5432"
+  database: "da1co8rkl4afh"
+
+# Lock file settings
+lockfile:
+  base_dir: "P:/DynaPOD/proj/trader"
+  name: "trading_app.lock"
+
+# Message storage settings
+message_storage:
+  temp_dir: "temp_messages"
+  media_subdir: "media"

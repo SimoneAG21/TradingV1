@@ -30,6 +30,7 @@ Environment:
 """
 
 import pytest
+import os
 from helper.config_manager import ConfigManager
 
 @pytest.fixture
@@ -44,7 +45,9 @@ def config():
         def test_example(config):
             assert config.get('logging', 'log_dir_name') == 'logs'
     """
-    return ConfigManager('tests/combined_config_test.yaml')
+    # Set project_root to the parent directory of tests/
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    return ConfigManager('tests/combined_config_test.yaml', project_root=project_root)
 
 def test_singleton_pattern(config):
     """
@@ -72,7 +75,8 @@ def test_get_with_default_isolated():
     Checks:
         - get_with_default('logging', 'missing', default='default') returns 'default'.
     """
-    config = ConfigManager('tests/combined_config_test.yaml')
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    config = ConfigManager('tests/combined_config_test.yaml', project_root=project_root)
     result = config.get_with_default("logging", "missing", default="default")
     print(f"Isolated get_with_default: {result}")
     assert result == "default", "Isolated default fallback failed"
@@ -207,3 +211,95 @@ def test_menu_structure(config):
     menu = config.get_section("menu")
     assert "Main" in menu, "Main menu missing"
     assert menu["Main"]["Trading"]["Start"]["params"]["amount"]["default"] == 50.0, "Trading Start amount incorrect"
+
+def test_nested_key_access(config):
+    """
+    Tests nested key access using dot notation.
+
+    Verifies ConfigManager correctly retrieves nested configuration values
+    (e.g., database.mysql.user), essential for scripts like channelTracker.py.
+
+    Checks:
+        - get('database', 'mysql.user') returns 'test_user'.
+        - get('database', 'mysql.port') returns 3306.
+        - get('database', 'mysql.missing') returns {}.
+        - get_with_default('database', 'mysql.missing', 'default') returns 'default'.
+    """
+    assert config.get("database", "mysql.user") == "test_user", "Failed to get nested mysql.user"
+    assert config.get("database", "mysql.port") == 3306, "Failed to get nested mysql.port"
+    assert config.get("database", "mysql.missing") == {}, "Failed to return {} for missing nested key"
+    assert config.get_with_default("database", "mysql.missing", "default") == "default", "Failed default fallback for nested key"
+
+def test_determine_project_root_cli():
+    """
+    Tests determine_project_root with a CLI-provided project root.
+
+    Verifies that the method returns the normalized CLI project root path when provided.
+
+    Checks:
+        - Returns normalized path from cli_project_root.
+    """
+    cli_root = "/home/egirg/shared/trading_dev"
+    result = ConfigManager.determine_project_root(
+        env_var_name="CHTRKR_ROOT",
+        cli_project_root=cli_root,
+        fallback_path="/tmp/fallback"
+    )
+    expected = os.path.abspath(cli_root)
+    assert result == expected, f"Expected CLI root {expected}, got {result}"
+
+def test_determine_project_root_env_var():
+    """
+    Tests determine_project_root with an environment variable.
+
+    Verifies that the method returns the normalized environment variable path when set.
+
+    Checks:
+        - Returns normalized path from CHTRKR_ROOT environment variable.
+    """
+    os.environ["CHTRKR_ROOT"] = "/home/egirg/shared/trading_dev"
+    try:
+        result = ConfigManager.determine_project_root(
+            env_var_name="CHTRKR_ROOT",
+            cli_project_root=None,
+            fallback_path="/tmp/fallback"
+        )
+        expected = os.path.abspath("/home/egirg/shared/trading_dev")
+        assert result == expected, f"Expected env var root {expected}, got {result}"
+    finally:
+        del os.environ["CHTRKR_ROOT"]
+
+def test_determine_project_root_fallback():
+    """
+    Tests determine_project_root with a fallback path.
+
+    Verifies that the method returns the normalized fallback path when no CLI or env var is provided.
+
+    Checks:
+        - Returns normalized path from fallback_path.
+    """
+    fallback = "/home/egirg/shared/trading_dev"
+    result = ConfigManager.determine_project_root(
+        env_var_name="CHTRKR_ROOT",
+        cli_project_root=None,
+        fallback_path=fallback
+    )
+    expected = os.path.abspath(fallback)
+    assert result == expected, f"Expected fallback root {expected}, got {result}"
+
+def test_determine_project_root_error():
+    """
+    Tests determine_project_root with no valid inputs.
+
+    Verifies that the method raises a ValueError when no CLI, env var, or fallback is provided.
+
+    Checks:
+        - Raises ValueError with appropriate message.
+    """
+    with pytest.raises(ValueError) as exc_info:
+        ConfigManager.determine_project_root(
+            env_var_name="CHTRKR_ROOT",
+            cli_project_root=None,
+            fallback_path=None
+        )
+    assert str(exc_info.value) == "No valid project_root provided (must specify CLI parameter, environment variable, or fallback path)", "Unexpected error message"

@@ -1,2 +1,3 @@
 source venv/bin/activate
-export PYTHONPATH=$PYTHONPATH:~/shared/trading_dev
+export PYTHONPATH=$PYTHONPATH:/home/egirg/shared/trading_dev
+export CHTRKR_ROOT="/home/egirg/shared/trading_dev"

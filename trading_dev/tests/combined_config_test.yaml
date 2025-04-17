@@ -2,23 +2,10 @@
 # Defines settings, processes, and menu for testing all features in
 # test_config_manager.py. Loaded by app.py, telegram_fetch.py, and Heroku
 # (seanstrader) during development and testing.
+#tests/combined_config_test.yaml
 
-# Usage:
-#   from helper.config_manager import ConfigManager
-#   config = ConfigManager('tests/combined_config_test.yaml')
-#   log_dir = config.get('logging', 'log_dir_name')  # Returns 'logs'
-#   processes = config.get_section('processes')      # Returns process list
-
-# Features:
-# - Logging: Defines log directory and levels (e.g., log_dir_name: logs).
-# - Constants: Sets app-wide settings (e.g., max_retries: 2).
-# - Menu: Hierarchical UI navigation (Main.Trading.Start).
-# - Templates: Reusable process settings (default_process).
-# - Processes: Task definitions with attributes, conditions, SQL.
-# - Includes: External file (processes.yaml) for additional processes.
 
 logging:
-  # Logging settings for application logs
   log_dir_name:
     value: logs
     type: string
@@ -28,13 +15,18 @@ logging:
   log_gen_level:
     value: INFO
     type: string
-    
+
 database:
   type: sqlite
   path: :memory
+  mysql:
+    user: test_user
+    password: test_pass
+    host: localhost
+    port: 3306
+    database: test_db
 
 constants:
-  # Application constants for runtime behavior
   max_retries:
     value: 2
     type: integer
@@ -43,7 +35,6 @@ constants:
     type: boolean
 
 menu:
-  # UI navigation structure for Flask app
   Main:
     Trading:
       help: Test trading menu
@@ -59,7 +50,6 @@ menu:
       help: Exit test
 
 templates:
-  # Reusable process templates
   default_process:
     interval:
       value: 60
@@ -69,7 +59,6 @@ templates:
       type: boolean
 
 processes:
-  # Process definitions for tasks (e.g., Telegram fetching)
   - id: fetch
     interval:
       value: 60
@@ -82,7 +71,6 @@ processes:
       value: high
       type: string
   - conditions:
-      # Environment-specific settings (test/prod)
       test:
         interval:
           value: 30
@@ -101,10 +89,8 @@ processes:
       value: 120
       type: integer
     sql:
-      # Embedded SQL query for database tasks
       fetch_messages: |
         SELECT * FROM telegram_messages WHERE timestamp > NOW() - INTERVAL '1 hour';
 
 includes:
-  # External process file for modularity
   - tests/processes.yaml
