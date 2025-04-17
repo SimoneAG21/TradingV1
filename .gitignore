@@ -37,3 +37,4 @@ config/*.secret
 .slugignore
 *.bak
 *.swp
+trading_dev/sessions/my_telegram_client.session
