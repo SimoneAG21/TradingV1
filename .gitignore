@@ -38,3 +38,5 @@ config/*.secret
 *.bak
 *.swp
 trading_dev/sessions/my_telegram_client.session
+trading_prod/
+trading_test/
