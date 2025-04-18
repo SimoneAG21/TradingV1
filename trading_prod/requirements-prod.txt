@@ -1,0 +1,6 @@
+pandas==2.2.3
+pyyaml==6.0.2
+sqlalchemy==2.0.40
+mysql-connector-python==9.1.0
+telethon==1.37.0
+pytz==2024.2

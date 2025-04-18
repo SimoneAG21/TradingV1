@@ -38,7 +38,10 @@ config/*.secret
 *.bak
 *.swp
 trading_dev/sessions/my_telegram_client.session
-trading_prod/
+trading_prod/logs/
+#trading_prod/sessions/
+trading_prod/venv/
+trading_prod/requirements.txt
 trading_test/
 trading_dev/htmlcov/
 trading_dev/jupyter/

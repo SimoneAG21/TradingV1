@@ -1,0 +1,19 @@
+database:
+  mysql:
+    user: trading_prod_user
+    password: ProdSafePass2025$
+    host: localhost
+    port: 3306
+    database: Trading_prod
+telegram:
+  api_id: 27715324
+  api_hash: 72f0a5168ab258f7b6cb169c78ff31d6
+  phone: "+14698380038"
+  session_path: sessions/my_telegram_client.session
+processes:
+  - name: channel_sync
+    template: sync_template
+templates:
+  sync_template:
+    enabled: true
+    retry_count: 3
