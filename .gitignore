@@ -40,3 +40,16 @@ config/*.secret
 trading_dev/sessions/my_telegram_client.session
 trading_prod/
 trading_test/
+trading_dev/htmlcov/
+trading_dev/jupyter/
+trading_dev/processed_messages/
+trading_dev/temp_messages/
+trading_dev/logs/
+*.pyc
+__pycache__/
+trading_dev/control/
+trading_dev/demos/
+trading_dev/pytest.ini
+trading_dev/create_databases_dev.sql
+trading_dev/config/channel_sync_config_old.yml
+trading_dev/config/demo_config.yaml
