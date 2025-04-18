@@ -156,7 +156,7 @@ def main():
             except Exception as e:
                 logger.error(f"Error updating channels table: {e}")
 
-        interval = config.get_with_default('channel_sync', 'interval', 300)  # Default 5 minutes
+        interval = config.get_with_default('channel_sync', 'interval', 180) * 60  # Default 5 minutes
         while True:
             logger.info("Starting channel sync cycle")
             df_tele = asyncio.run(fetch_telegram_channels())
