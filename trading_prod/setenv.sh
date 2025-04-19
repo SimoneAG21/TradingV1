@@ -21,3 +21,5 @@ echo "Environment set for trading_prod:"
 echo "PYTHONPATH=$PYTHONPATH"
 echo "CHTRKR_ROOT=$CHTRKR_ROOT"
 echo "Virtual environment: $VIRTUAL_ENV"
+alias npp='notepad++.exe'
+alias cmp='/mnt/c/porta/PortableApps/WinMergePortable/WinMergePortable.exe'

@@ -1,0 +1,60 @@
+
+# /etc/systemd/system/telegram-fetch.service
+
+[Unit]
+Description=Telegram Fetch Service
+After=network.target
+
+[Service]
+User=egirg
+Environment="CHTRKR_ROOT=/home/egirg/shared/trading_prod"
+Environment="PYTHONPATH=/home/egirg/shared/trading_prod"
+WorkingDirectory=/home/egirg/shared/trading_prod
+ExecStart=/home/egirg/shared/trading_prod/venv/bin/python /home/egirg/shared/trading_prod/scripts/telegram_fetch.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
+
+----------------
+
+(venv) egirg@laptop:~/shared/trading_prod$ systemctl cat channel-tracker.service
+# /etc/systemd/system/channel-tracker.service
+[Unit]
+Description=Channel Tracker Service
+After=network.target
+
+[Service]
+User=egirg
+Environment="CHTRKR_ROOT=/home/egirg/shared/trading_prod"
+Environment="PYTHONPATH=/home/egirg/shared/trading_prod"
+WorkingDirectory=/home/egirg/shared/trading_prod
+ExecStart=/home/egirg/shared/trading_prod/venv/bin/python /home/egirg/shared/trading_prod/scripts/channelTracker.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
+
+----
+
+(venv) egirg@laptop:~/shared/trading_prod$ sudo systemctl stop telegram-fetch.service
+(venv) egirg@laptop:~/shared/trading_prod$ sudo systemctl status telegram-fetch.service
+○ telegram-fetch.service - Telegram Fetch Service
+     Loaded: loaded (/etc/systemd/system/telegram-fetch.service; enabled; preset: enabled)
+     Active: inactive (dead) since Sat 2025-04-19 01:11:40 CDT; 10s ago
+   Duration: 13min 26.542s
+    Process: 108436 ExecStart=/home/egirg/shared/trading_prod/venv/bin/python /home/egirg/shared/trading_prod/scripts/telegram_fetch.py (code=killed, signa>
+   Main PID: 108436 (code=killed, signal=TERM)
+
+Apr 19 00:58:13 laptop systemd[1]: telegram-fetch.service: Scheduled restart job, restart counter is at 1.
+Apr 19 00:58:13 laptop systemd[1]: Started telegram-fetch.service - Telegram Fetch Service.
+Apr 19 01:11:40 laptop systemd[1]: Stopping telegram-fetch.service - Telegram Fetch Service...
+Apr 19 01:11:40 laptop systemd[1]: telegram-fetch.service: Deactivated successfully.
+Apr 19 01:11:40 laptop systemd[1]: Stopped telegram-fetch.service - Telegram Fetch Service.
+(venv) egirg@laptop:~/shared/trading_prod$
+
+

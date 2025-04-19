@@ -1,0 +1,43 @@
+mysql -u trading_prod_user -p Trading_prod
+
+
+ProdSafePass2025$
+
+UPDATE channels
+SET earliest_raw_message_ID = NULL,
+    earliest_raw_message_date = NULL,
+    latest_raw_message_ID = NULL,
+    latest_raw_message_date = NULL,
+    FetchStatus = 0,
+    fetch_attempts = 0
+    where
+        operating = 1;
+
+
+
+
+mysql -u trading_prod_user -p -h localhost -P 3306 Trading_prod
+
+
+
+
+CREATE TABLE channel_fetch_batches (
+    channel_id BIGINT NOT NULL,
+    batch_timestamp DATETIME NOT NULL,
+    message_file_path VARCHAR(512),
+    first_message_id BIGINT,
+    first_timestamp DATETIME,
+    last_message_id BIGINT,
+    last_timestamp DATETIME,
+    message_count INT,
+    processed TINYINT DEFAULT 0,
+    created_dt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (channel_id, batch_timestamp),
+    FOREIGN KEY (channel_id) REFERENCES channels(ID)
+);
+
+
+truncate channel_fetch_batches;
+
+
+

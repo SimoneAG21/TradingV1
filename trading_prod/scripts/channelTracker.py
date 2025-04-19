@@ -1,4 +1,7 @@
 #scripts/channelTracker.py
+
+
+# scripts/channelTracker.py
 import argparse
 import os
 import sys
@@ -13,6 +16,7 @@ import asyncio
 from datetime import datetime
 from helper.config_manager import ConfigManager
 from helper.Logger import Logging
+from helper.lockfile import LockFileHandler
 
 def setup_logging(config, log_file):
     """Setup logging with file and console handlers using Logging class."""
@@ -20,12 +24,102 @@ def setup_logging(config, log_file):
     logger.set_log_file(os.path.splitext(os.path.basename(log_file))[0])
     return logger
 
+def fetch_db_channels(engine, logger, db_config):
+    """Fetch channels from the database."""
+    try:
+        with engine.connect() as conn:
+            query = "SELECT ID, Name, Operating, Disappeared, created_dt, update_dt FROM channels"
+            df_db = pd.read_sql(query, conn)
+            logger.info(f"Fetched {len(df_db)} channels from {db_config['database']}")
+            return df_db
+    except Exception as e:
+        logger.error(f"Error fetching channels from database: {e}")
+        return None
+
+def update_channels_table(df_tele, engine, logger, db_config):
+    """Update the channels table with Telegram data."""
+    df_db = fetch_db_channels(engine, logger, db_config)
+    if df_db is None or df_tele is None or df_tele.empty:
+        logger.warning("Cannot update channels: database or Telegram data missing.")
+        return
+    df_db.set_index('ID', inplace=True)
+    df_tele.set_index('ID', inplace=True)
+    try:
+        with engine.connect() as conn:
+            new_channels = df_tele[~df_tele.index.isin(df_db.index)].copy()
+            if not new_channels.empty:
+                new_channels['Operating'] = 0
+                new_channels['Disappeared'] = 0
+                new_channels['created_dt'] = datetime.now()
+                new_channels['update_dt'] = None
+                new_channels.reset_index().to_sql('channels', conn, if_exists='append', index=False)
+                logger.info(f"Inserted {len(new_channels)} new channels")
+            for channel_id in df_db.index:
+                if channel_id in df_tele.index:
+                    tele_name = df_tele.loc[channel_id, 'Name']
+                    db_name = df_db.loc[channel_id, 'Name']
+                    db_disappeared = df_db.loc[channel_id, 'Disappeared']
+                    update_needed = (tele_name != db_name) or (db_disappeared != 0)
+                    if update_needed:
+                        conn.execute(
+                            text("UPDATE channels SET Name = :name, Disappeared = 0, update_dt = :update_dt WHERE ID = :id"),
+                            {"name": tele_name, "update_dt": datetime.now(), "id": channel_id}
+                        )
+                else:
+                    if df_db.loc[channel_id, 'Disappeared'] != 1:
+                        conn.execute(
+                            text("UPDATE channels SET Disappeared = 1, update_dt = :update_dt WHERE ID = :id"),
+                            {"update_dt": datetime.now(), "id": channel_id}
+                        )
+            conn.commit()
+            logger.info("Channels table updated successfully")
+    except Exception as e:
+        logger.error(f"Error updating channels table: {e}")
+
+async def fetch_telegram_channels(tele_config, engine, logger):
+    """Fetch channels from Telegram and store in temp_channels table."""
+    client = TelegramClient(tele_config["session_path"], tele_config["api_id"], tele_config["api_hash"])
+    try:
+        logger.info("Attempting to connect to Telegram...")
+        await client.connect()
+        if not await client.is_user_authorized():
+            logger.info("Session not authorized; starting login...")
+            await client.start(phone=tele_config["phone_number"])
+        else:
+            logger.info("Using existing authorized session")
+
+        logger.info("Successfully logged in to Telegram!")
+        dialogs = await client.get_dialogs()
+        channel_data = [(dialog.id, dialog.name) for dialog in dialogs if dialog.is_channel]
+        df_tele = pd.DataFrame(channel_data, columns=['ID', 'Name'])
+        with engine.connect() as conn:
+            conn.execute(text("TRUNCATE TABLE temp_channels"))
+            df_tele.to_sql('temp_channels', conn, if_exists='append', index=False)
+            conn.commit()
+            logger.info(f"Stored {len(df_tele)} channels in temp_channels")
+        return df_tele
+    except Exception as e:
+        logger.error(f"Error fetching Telegram channels: {e}")
+        return None
+    finally:
+        if client.is_connected():
+            await client.disconnect()
+        logger.info("Disconnected from Telegram")
+
 def main():
     default_log_file = "/home/egirg/shared/trading_dev/logs/channel_tracker_default.log"
     config = ConfigManager('config/channel_sync_config.yaml', project_root="/home/egirg/shared/trading_dev")
     logger = setup_logging(config, default_log_file)
 
+    # Initialize lock file handler
+    lockfile_name = config.get_with_default("lockfile", "lock_name", default="channelTracker.lock")
+    lock_handler = LockFileHandler(config, lockfile_name, logger)
+
     try:
+        # Acquire lock to prevent multiple instances
+        lock_handler.acquire()
+        logger.info("Channel tracker started.")
+
         parser = argparse.ArgumentParser(description="Channel Tracker Script")
         parser.add_argument('--project-root', type=str, help="Project root directory")
         args = parser.parse_args()
@@ -77,98 +171,41 @@ def main():
             logger.error(f"Error connecting to MySQL: {e}")
             sys.exit(1)
 
-        async def fetch_telegram_channels():
-            client = TelegramClient(tele_config["session_path"], tele_config["api_id"], tele_config["api_hash"])
-            try:
-                logger.info("Attempting to connect to Telegram...")
-                await client.connect()
-                if not await client.is_user_authorized():
-                    logger.info("Session not authorized; starting login...")
-                    await client.start(phone=tele_config["phone_number"])
-                else:
-                    logger.info("Using existing authorized session")
-                
-                logger.info("Successfully logged in to Telegram!")
-                dialogs = await client.get_dialogs()
-                channel_data = [(dialog.id, dialog.name) for dialog in dialogs if dialog.is_channel]
-                df_tele = pd.DataFrame(channel_data, columns=['ID', 'Name'])
-                with engine.connect() as conn:
-                    conn.execute(text("TRUNCATE TABLE temp_channels"))
-                    df_tele.to_sql('temp_channels', conn, if_exists='append', index=False)
-                    conn.commit()
-                    logger.info(f"Stored {len(df_tele)} channels in temp_channels")
-                return df_tele
-            except Exception as e:
-                logger.error(f"Error fetching Telegram channels: {e}")
-                return None
-            finally:
-                if client.is_connected():
-                    await client.disconnect()
-                logger.info("Disconnected from Telegram")
+        sync_interval = config.get_with_default('schedule', 'interval_minutes', 180) * 60  # Default 180 minutes
+        lock_check_interval = 60  # Check lock file every 60 seconds
 
-        def fetch_db_channels():
-            try:
-                with engine.connect() as conn:
-                    query = "SELECT ID, Name, Operating, Disappeared, created_dt, update_dt FROM channels"
-                    df_db = pd.read_sql(query, conn)
-                    logger.info(f"Fetched {len(df_db)} channels from {db_config['database']}")
-                    return df_db
-            except Exception as e:
-                logger.error(f"Error fetching channels from database: {e}")
-                return None
+        # Perform the first channel sync immediately on startup
+        logger.info("Starting initial channel sync cycle")
+        df_tele = asyncio.run(fetch_telegram_channels(tele_config, engine, logger))
+        update_channels_table(df_tele, engine, logger, db_config)
+        logger.info(f"Initial channel sync cycle completed, will sync again in {sync_interval} seconds")
 
-        def update_channels_table(df_tele):
-            df_db = fetch_db_channels()
-            if df_db is None or df_tele is None or df_tele.empty:
-                logger.warning("Cannot update channels: database or Telegram data missing.")
-                return
-            df_db.set_index('ID', inplace=True)
-            df_tele.set_index('ID', inplace=True)
-            try:
-                with engine.connect() as conn:
-                    new_channels = df_tele[~df_tele.index.isin(df_db.index)].copy()
-                    if not new_channels.empty:
-                        new_channels['Operating'] = 0
-                        new_channels['Disappeared'] = 0
-                        new_channels['created_dt'] = datetime.now()
-                        new_channels['update_dt'] = None
-                        new_channels.reset_index().to_sql('channels', conn, if_exists='append', index=False)
-                        logger.info(f"Inserted {len(new_channels)} new channels")
-                    for channel_id in df_db.index:
-                        if channel_id in df_tele.index:
-                            tele_name = df_tele.loc[channel_id, 'Name']
-                            db_name = df_db.loc[channel_id, 'Name']
-                            db_disappeared = df_db.loc[channel_id, 'Disappeared']
-                            update_needed = (tele_name != db_name) or (db_disappeared != 0)
-                            if update_needed:
-                                conn.execute(
-                                    text("UPDATE channels SET Name = :name, Disappeared = 0, update_dt = :update_dt WHERE ID = :id"),
-                                    {"name": tele_name, "update_dt": datetime.now(), "id": channel_id}
-                                )
-                        else:
-                            if df_db.loc[channel_id, 'Disappeared'] != 1:
-                                conn.execute(
-                                    text("UPDATE channels SET Disappeared = 1, update_dt = :update_dt WHERE ID = :id"),
-                                    {"update_dt": datetime.now(), "id": channel_id}
-                                )
-                    conn.commit()
-                    logger.info("Channels table updated successfully")
-            except Exception as e:
-                logger.error(f"Error updating channels table: {e}")
-
-        interval = config.get_with_default('channel_sync', 'interval', 180) * 60  # Default 5 minutes
+        # Enter the loop for periodic lock file checks and subsequent syncs
+        elapsed_time = 0
         while True:
-            logger.info("Starting channel sync cycle")
-            df_tele = asyncio.run(fetch_telegram_channels())
-            update_channels_table(df_tele)
-            logger.info(f"Sleeping for {interval} seconds")
-            time.sleep(interval)
+            # Check if the lock file exists
+            if not os.path.exists(lock_handler.lock_file_path):
+                logger.info("Lock file removed, stopping service")
+                break
+
+            # Perform channel sync if enough time has passed
+            if elapsed_time >= sync_interval:
+                logger.info("Starting channel sync cycle")
+                df_tele = asyncio.run(fetch_telegram_channels(tele_config, engine, logger))
+                update_channels_table(df_tele, engine, logger, db_config)
+                elapsed_time = 0  # Reset elapsed time after sync
+                logger.info(f"Channel sync cycle completed, sleeping for {sync_interval} seconds")
+
+            # Sleep for the lock check interval and increment elapsed time
+            time.sleep(lock_check_interval)
+            elapsed_time += lock_check_interval
 
     except Exception as e:
         logger.error(f"Error: {e}")
         traceback.print_exc()
         sys.exit(1)
     finally:
+        lock_handler.release()
         logger.close_log()
 
 if __name__ == "__main__":
