@@ -82,7 +82,7 @@ class Logging:
                     self.config.get_with_default(
                         "logging",
                         "logstream_format",
-                        default="%(name)s - %(levelname)s - %(message)s"
+                        default="%(filename)s:%(funcName)s - %(levelname)s - %(message)s"
                     )
                 )
                 stream_handler.setFormatter(stream_formatter)
@@ -124,7 +124,7 @@ class Logging:
                 self.config.get_with_default(
                     "logging",
                     "logfile_file_format",
-                    default="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                    default="%(asctime)s - %(filename)s:%(funcName)s - %(levelname)s - %(message)s"
                 )
             )
             file_handler.setFormatter(file_formatter)
@@ -162,9 +162,9 @@ class Logging:
         """Log a warning message."""
         self.logger.warning(msg)
 
-    def error(self, msg: str):
-        """Log an error message."""
-        self.logger.error(msg)
+    def error(self, msg: str, exc_info=None):
+        """Log an error message, optionally with exception stack trace."""
+        self.logger.error(msg, exc_info=exc_info)
 
     def critical(self, msg: str):
         """Log a critical message."""

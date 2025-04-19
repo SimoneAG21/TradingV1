@@ -25,7 +25,7 @@ How to Run Tests:
   Output: htmlcov/index.html
 
 Environment:
-- Activate virtualenv: .\venv\Scripts\activate
+- Activate virtualenv: .\venv\\Scripts\activate
 - Requires: pytest, pyyaml (in requirements.txt)
 """
 

@@ -17,3 +17,15 @@ templates:
   sync_template:
     enabled: true
     retry_count: 3
+telegramHistoryRawUpdater:
+  fetch:
+    batch_size: 500
+    sleep_seconds: 2
+    log_file_name: telegram_fetch
+    pause_seconds: 5
+    days_limit: 90
+    max_retries: 3
+    base_dir: temp_messages
+    lockfile:
+      base_dir: locks
+      name: telegram_fetch.lock

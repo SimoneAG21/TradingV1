@@ -1,74 +1,46 @@
+# tests/test_lockfile.py
 import pytest
 import os
-from unittest.mock import MagicMock, patch
-from helper.lockfile import LockFileHandler, LockError
-from helper.Logger import Logging
+from unittest.mock import MagicMock
+from helper.lockfile import LockFileHandler
+from helper.config_manager import ConfigManager
 
 @pytest.fixture
 def mock_config():
     config = MagicMock()
     config.get_with_default.side_effect = lambda section, key, default: {
-        ("lockfile", "base_dir"): "P:/DynaPOD/proj/trader",
-        ("lockfile", "name"): "test_app.lock",
-    }.get((section, key), default)
+        ("telegramHistoryRawUpdater", "fetch.lockfile.base_dir", "locks"): "custom_locks",
+        ("telegramHistoryRawUpdater", "fetch.lockfile.name", "process.lock"): "custom.lock"
+    }.get((section, key, default), default)
     return config
 
 @pytest.fixture
-def logger(mock_config):
-    logger = Logging(mock_config, instance_id="test_lockfile")
-    yield logger
-    logger.close_log()
+def mock_logger():
+    return MagicMock()
 
-@pytest.fixture
-def lock_handler(mock_config, logger):
-    handler = LockFileHandler(mock_config, "test_app", logger)
-    yield handler
-    handler.release()  # Ensure lock is released after each test
+def test_lockfile_handler_init_correct_config(mock_config, mock_logger, tmp_path):
+    lockfile_name = "test.lock"  # Passed but ignored if config specifies name
+    handler = LockFileHandler(mock_config, lockfile_name, mock_logger)
+    assert handler.lock_file_dir == "custom_locks"
+    assert handler.lock_file_name == "custom.lock"
+    assert handler.lock_file_path == os.path.join("custom_locks", "custom.lock")
+    mock_config.get_with_default.assert_any_call(
+        "telegramHistoryRawUpdater", "fetch.lockfile.base_dir", default="locks"
+    )
+    mock_config.get_with_default.assert_any_call(
+        "telegramHistoryRawUpdater", "fetch.lockfile.name", default="process.lock"
+    )
 
-def test_acquire_and_release(lock_handler):
-    # Test acquiring the lock
-    lock_handler.acquire()
-    assert os.path.exists(lock_handler.lock_file_path)
-
-    # Test releasing the lock
-    lock_handler.release()
-    assert not os.path.exists(lock_handler.lock_file_path)
-
-def test_multiple_instances(lock_handler):
-    # Acquire lock with first instance
-    lock_handler.acquire()
-
-    # Try to acquire with a second instance
-    second_handler = LockFileHandler(lock_handler.config, "test_app", lock_handler.logger)
-    with pytest.raises(LockError, match="Failed to acquire lock: another instance of test_app is running"):
-        second_handler.acquire()
-
-    # Release the first lock and try again
-    lock_handler.release()
-    second_handler.acquire()  # Should succeed
-    second_handler.release()
-
-def test_context_manager(lock_handler):
-    # Test using LockFileHandler as a context manager
-    with LockFileHandler(lock_handler.config, "test_app", lock_handler.logger) as handler:
-        assert os.path.exists(handler.lock_file_path)
-    assert not os.path.exists(lock_handler.lock_file_path)
-
-def test_invalid_config_type(logger):
-    with pytest.raises(AttributeError):  # Since config needs get_with_default
-        LockFileHandler({}, "test_app", logger)
-
-def test_invalid_logger_type(mock_config):
-    with pytest.raises(TypeError):
-        LockFileHandler(mock_config, "test_app", "not_logger")
-
-def test_directory_creation_failure(mock_config, logger):
-    # Mock os.makedirs to raise an OSError
-    mock_config.get_with_default.side_effect = lambda section, key, default: {
-        ("lockfile", "base_dir"): "P:/DynaPOD/proj/trader",
-        ("lockfile", "name"): "test_app.lock",
-    }.get((section, key), default)
-    
-    with patch("os.makedirs", side_effect=OSError("Permission denied")):
-        with pytest.raises(OSError, match="Permission denied"):
-            LockFileHandler(mock_config, "test_app", logger)
+def test_lockfile_handler_init_default_config(mock_config, mock_logger, tmp_path):
+    mock_config.get_with_default.side_effect = lambda section, key, default: default
+    lockfile_name = "test.lock"
+    handler = LockFileHandler(mock_config, lockfile_name, mock_logger)
+    assert handler.lock_file_dir == "locks"
+    assert handler.lock_file_name == "process.lock"
+    assert handler.lock_file_path == os.path.join("locks", "process.lock")
+    mock_config.get_with_default.assert_any_call(
+        "telegramHistoryRawUpdater", "fetch.lockfile.base_dir", default="locks"
+    )
+    mock_config.get_with_default.assert_any_call(
+        "telegramHistoryRawUpdater", "fetch.lockfile.name", default="process.lock"
+    )

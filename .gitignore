@@ -56,3 +56,19 @@ trading_dev/pytest.ini
 trading_dev/create_databases_dev.sql
 trading_dev/config/channel_sync_config_old.yml
 trading_dev/config/demo_config.yaml
+
+
+# Ignore coverage files
+.coverage
+
+# Ignore Telegram session files
+sessions/*.session
+
+# Ignore temporary files
+output.txt
+
+# Ignore Windows shortcut files
+*.lnk
+
+# Ignore troubleshooting scripts (unless you want to commit them)
+troubleshoot_telegram_client.py
